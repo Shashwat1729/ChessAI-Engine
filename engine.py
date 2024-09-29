@@ -1,206 +1,147 @@
-Here’s a detailed README in markdown format for your chess engine project, assuming the repository will be named "ChessAI-Engine":
+import chess
+import random
 
-```markdown
-# ChessAI-Engine
-
-This repository hosts a lightweight chess engine capable of evaluating board positions and selecting optimal moves using a combination of piece-square evaluation tables and the Alpha-Beta pruning algorithm. The engine is also equipped with a transposition table to optimize performance by caching previously evaluated positions.
-
-## Table of Contents
-- [Introduction](#introduction)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Project Structure](#project-structure)
-- [Code Overview](#code-overview)
-- [Future Enhancements](#future-enhancements)
-- [License](#license)
-
-## Introduction
-
-**ChessAI-Engine** is a Python-based chess engine that simulates gameplay using intelligent board evaluation techniques. It integrates piece-square tables for position evaluation and employs the Alpha-Beta pruning algorithm for efficiently selecting the best moves. Additionally, a quiescence search is included to avoid common pitfalls, such as the horizon effect, and a transposition table is used to store previously computed evaluations, reducing redundant calculations.
-
-## Features
-
-- **Piece-Square Tables**: Predefined evaluation charts for different pieces are used to score board positions, enhancing the engine’s decision-making.
-- **Alpha-Beta Pruning**: A classic algorithm used to optimize the search tree, speeding up move selection by eliminating branches that cannot influence the final decision.
-- **Transposition Table**: A caching mechanism that saves the evaluations of previously encountered positions to improve performance.
-- **Quiescence Search**: A technique that ensures better evaluation by searching deeper into captures and threats, preventing shallow tactical blunders.
-- **Random Move Generator**: A simple method for generating random legal moves for testing or fun gameplay.
-
-## Installation
-
-1. **Clone the Repository**:
-    ```bash
-    git clone https://github.com/Shashwat1729/ChessAI-Engine.git
-    cd ChessAI-Engine
-    ```
-
-2. **Install Required Dependencies**:
-    The engine relies on the `python-chess` library, which you can install via pip:
-    ```bash
-    pip install python-chess
-    ```
-
-3. **Optional**: To explore deeper optimizations or debugging features, you might want to install additional tools like `numpy` for faster matrix operations (not required for basic use).
-
-## Usage
-
-You can use the chess engine to play games, evaluate positions, or integrate it into your own projects.
-
-1. **Run the Engine**:
-    To start evaluating positions and make moves, instantiate the `group1` class with your chosen color:
-    ```python
-    import chess
-    from engine import group1  # Assuming your main code is in a file named engine.py
-
-    # Initialize a chess board
-    board = chess.Board()
-
-    # Create an AI engine instance for white
-    engine = group1("white")
-
-    # Get the engine's move
-    move = engine.makemove(board)
-
-    # Apply the move to the board
-    board.push_uci(move)
-    ```
-
-2. **Board Evaluation**:
-    You can also evaluate any board position by using the `evaluate_board` function:
-    ```python
-    eval_score = engine.evaluate_board(board)
-    print(f"Board Evaluation Score: {eval_score}")
-    ```
-
-3. **Random Move Selection**:
-    Use the `get_move` method to get a random move from the legal options on the board:
-    ```python
-    random_move = engine.get_move(board)
-    print(f"Random Move: {random_move}")
-    ```
-
-## Project Structure
-
-```plaintext
-ChessAI-Engine/
-│
-├── engine.py           # Core chess engine code, including evaluation and move generation
-├── README.md           # This readme file
-├── LICENSE             # License file
-└── requirements.txt    # Required libraries for the project
-```
-
-## Code Overview
-
-### Piece Evaluation Charts
-
-Each chess piece has an associated evaluation chart, which assigns different scores based on their positions on the board. These charts help the engine understand the relative value of a piece depending on its location.
-
-Example: 
-```python
+# Piece-Square Tables: Positional evaluation charts for each piece type.
+# These lists represent the relative value of each square on the board for a given piece type.
+# Higher values indicate more favorable positions.
 pawn_chart = [
+    # Positional evaluation for pawns
     0, 0, 0, 0, 0, 0, 0, 0,
     5, 10, 10, -20, -20, 10, 10, 5,
-    ...
-]
-```
+    5, -5, -10, 0, 0, -10, -5, 5,
+    0, 0, 0, 20, 20, 0, 0, 0,
+    5, 5, 10, 25, 25, 10, 5, 5,
+    10, 10, 20, 30, 30, 20, 10, 10,
+    50, 50, 50, 50, 50, 50, 50, 50,
+    0, 0, 0, 0, 0, 0, 0, 0]
 
-### Transposition Table
+knight_chart = [
+    # Positional evaluation for knights
+    -50, -40, -30, -30, -30, -30, -40, -50,
+    -40, -20, 0, 5, 5, 0, -20, -40,
+    -30, 5, 10, 15, 15, 10, 5, -30,
+    -30, 0, 15, 20, 20, 15, 0, -30,
+    -30, 5, 15, 20, 20, 15, 5, -30,
+    -30, 0, 10, 15, 15, 10, 0, -30,
+    -40, -20, 0, 0, 0, 0, -20, -40,
+    -50, -40, -30, -30, -30, -30, -40, -50]
 
-To avoid redundant calculations, the engine implements a transposition table. It stores previously computed board evaluations, so positions that have already been analyzed can be quickly reused.
+bishops_chart = [
+    # Positional evaluation for bishops
+    -20, -10, -10, -10, -10, -10, -10, -20,
+    -10, 5, 0, 0, 0, 0, 5, -10,
+    -10, 10, 10, 10, 10, 10, 10, -10,
+    -10, 0, 10, 10, 10, 10, 0, -10,
+    -10, 5, 5, 10, 10, 5, 5, -10,
+    -10, 0, 5, 10, 10, 5, 0, -10,
+    -10, 0, 0, 0, 0, 0, 0, -10,
+    -20, -10, -10, -10, -10, -10, -10, -20]
 
-```python
+rooks_chart = [
+    # Positional evaluation for rooks
+    -10, 0, 0, 5, 5, 0, 0, -10,
+    5, 0, 0, 0, 0, 0, 0, 5,
+    -5, 0, 0, 0, 0, 0, 0, -5,
+    -5, 0, 0, 0, 0, 0, 0, -5,
+    -5, 0, 0, 0, 0, 0, 0, -5,
+    -5, 0, 0, 0, 0, 0, 0, -5,
+    5, 10, 10, 10, 10, 10, 10, 5,
+    -10, 0, 0, 0, 0, 0, 0, -10]
+
+queens_chart = [
+    # Positional evaluation for queens
+    -20, -10, -10, -5, -5, -10, -10, -20,
+    -10, 0, 0, 0, 0, 0, 0, -10,
+    -10, 5, 5, 5, 5, 5, 0, -10,
+    0, 0, 5, 5, 5, 5, 0, -5,
+    -5, 0, 5, 5, 5, 5, 0, -5,
+    -10, 0, 5, 5, 5, 5, 0, -10,
+    -10, 0, 0, 0, 0, 0, 0, -10,
+    -20, -10, -10, -5, -5, -10, -10, -20]
+
+kings_chart = [
+    # Positional evaluation for kings in early/middle game
+    20, 30, 10, 0, 0, 10, 30, 20,
+    20, 20, 0, 0, 0, 0, 20, 20,
+    -10, -20, -20, -20, -20, -20, -20, -10,
+    -20, -30, -30, -40, -40, -30, -30, -20,
+    -30, -40, -40, -50, -50, -40, -40, -30,
+    -30, -40, -40, -50, -50, -40, -40, -30,
+    -30, -40, -40, -50, -50, -40, -40, -30,
+    -30, -40, -40, -50, -50, -40, -40, -30]
+
 class TranspositionTable:
+    # A class to handle caching of board evaluations to optimize search
     def __init__(self):
         self.table = {}
 
     def lookup(self, key):
+        # Retrieve a stored evaluation from the transposition table, if available
         return self.table.get(key)
 
     def store(self, key, value):
+        # Store a board evaluation in the transposition table
         self.table[key] = value
-```
 
-### Alpha-Beta Pruning
+class group1:
+    # A class representing a simple chess engine, responsible for board evaluation and move selection
+    def __init__(self, color):
+        self.color = color
+        self.transposition_table = TranspositionTable()
 
-Alpha-beta pruning optimizes the decision-making process by trimming branches in the game tree that won’t affect the outcome, reducing the number of board positions that need to be evaluated.
+    def generate_board_key(self, board):
+        # Generate a unique key for the current board state using the FEN notation
+        return board.fen()
 
-```python
-def alphabeta(self, alpha, beta, depthleft, board):
-    if depthleft == 0:
-        return self.quiesce(alpha, beta, board)
+    def evaluate_board(self, board):
+        # Evaluate the current board position using material and positional analysis
+        # Special cases for checkmate, stalemate, and insufficient material
+        if board.is_checkmate():
+            return -9999 if board.turn else 9999  # Assign high negative/positive values for checkmate
+        if board.is_stalemate() or board.is_insufficient_material():
+            return 0  # Draw conditions
 
-    for move in board.legal_moves:
-        board.push(move)
-        score = -self.alphabeta(-beta, -alpha, depthleft - 1, board)
-        board.pop()
+        # Check if evaluation for the current board state is cached
+        board_key = self.generate_board_key(board)
+        cached_value = self.transposition_table.lookup(board_key)
+        if cached_value is not None:
+            return cached_value
+        else:
+            # Material evaluation: Weigh the number of pieces for each side
+            pw = len(board.pieces(chess.PAWN, chess.WHITE))
+            pb = len(board.pieces(chess.PAWN, chess.BLACK))
+            nw = len(board.pieces(chess.KNIGHT, chess.WHITE))
+            nb = len(board.pieces(chess.KNIGHT, chess.BLACK))
+            bw = len(board.pieces(chess.BISHOP, chess.WHITE))
+            bb = len(board.pieces(chess.BISHOP, chess.BLACK))
+            rw = len(board.pieces(chess.ROOK, chess.WHITE))
+            rb = len(board.pieces(chess.ROOK, chess.BLACK))
+            qw = len(board.pieces(chess.QUEEN, chess.WHITE))
+            qb = len(board.pieces(chess.QUEEN, chess.BLACK))
 
-        alpha = max(alpha, score)
-        if alpha >= beta:
-            return alpha  # Beta cutoff
-    return alpha
-```
+            material = 100 * (pw - pb) + 320 * (nw - nb) + 330 * (bw - bb) + 500 * (rw - rb) + 900 * (qw - qb)
 
-### Quiescence Search
+            # Positional evaluation using Piece-Square tables
+            pawnsq = sum([pawn_chart[i] for i in board.pieces(chess.PAWN, chess.WHITE)]) + \
+                     sum([-pawn_chart[chess.square_mirror(i)] for i in board.pieces(chess.PAWN, chess.BLACK)])
+            knightsq = sum([knight_chart[i] for i in board.pieces(chess.KNIGHT, chess.WHITE)]) + \
+                       sum([-knight_chart[chess.square_mirror(i)] for i in board.pieces(chess.KNIGHT, chess.BLACK)])
+            bishopsq = sum([bishops_chart[i] for i in board.pieces(chess.BISHOP, chess.WHITE)]) + \
+                       sum([-bishops_chart[chess.square_mirror(i)] for i in board.pieces(chess.BISHOP, chess.BLACK)])
+            rooksq = sum([rooks_chart[i] for i in board.pieces(chess.ROOK, chess.WHITE)]) + \
+                     sum([-rooks_chart[chess.square_mirror(i)] for i in board.pieces(chess.ROOK, chess.BLACK)])
+            queensq = sum([queens_chart[i] for i in board.pieces(chess.QUEEN, chess.WHITE)]) + \
+                      sum([-queens_chart[chess.square_mirror(i)] for i in board.pieces(chess.QUEEN, chess.BLACK)])
+            kingsq = sum([kings_chart[i] for i in board.pieces(chess.KING, chess.WHITE)]) + \
+                     sum([-kings_chart[chess.square_mirror(i)] for i in board.pieces(chess.KING, chess.BLACK)])
 
-The quiescence search helps the engine avoid horizon effects by extending the search for unstable positions, such as those involving captures.
+            evaluation = material + pawnsq + knightsq + bishopsq + rooksq + queensq + kingsq
 
-```python
-def quiesce(self, alpha, beta, board):
-    stand_pat = self.evaluate_board(board)
-    if stand_pat >= beta:
-        return beta
-    if alpha < stand_pat:
-        alpha = stand_pat
+            # Store the computed evaluation in the transposition table
+            self.transposition_table.store(board_key, evaluation)
+            return evaluation
 
-    for move in board.legal_moves:
-        if board.is_capture(move):
-            board.push(move)
-            score = -self.quiesce(-beta, -alpha, board)
-            board.pop()
-
-            alpha = max(alpha, score)
-            if alpha >= beta:
-                return alpha  # Beta cutoff
-    return alpha
-```
-
-### Move Generation
-
-The `select_move` function implements move selection based on the evaluation of the board after each legal move. The engine selects the move with the highest evaluation score.
-
-```python
-def select_move(self, board):
-    best_move = None
-    best_value = float('-inf')
-    alpha = float('-inf')
-    beta = float('inf')
-
-    for move in board.legal_moves:
-        board.push(move)
-        board_value = -self.alphabeta(-beta, -alpha, 2, board)
-        board.pop()
-
-        if board_value > best_value:
-            best_value = board_value
-            best_move = move
-        alpha = max(alpha, board_value)
-
-    return best_move
-```
-
-## Future Enhancements
-
-- **Search Depth Optimization**: Introduce iterative deepening to improve search depth dynamically based on the game state.
-- **Endgame Knowledge**: Add specific endgame strategies for more accurate evaluation in the late game.
-- **Multi-threading**: Optimize the engine to support parallel move evaluation for faster decision-making.
-- **Opening Book**: Implement a predefined opening book for stronger initial moves.
-- **GUI Integration**: Connect the engine to a graphical interface for more user-friendly gameplay.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-```
-
-You can adjust the repository name and other project-specific details as needed. This README provides a comprehensive overview of the chess engine project, from installation to detailed explanations of core components.
+    def get_move(self, board):
+        # Select a random move from available legal moves
+        move = random.choice(list(board.legal_moves))
+        return move
